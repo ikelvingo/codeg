@@ -87,9 +87,6 @@ jobs:
             # under `tests/`. Without the flag those items are physically
             # uncompiled, so integration tests would fail to link.
             cargo_args: "--features test-utils"
-            # macOS builds the lib's unit tests on their own first; see
-            # "Unit-test build on its own (macOS)".
-            lib_test_args: "--features test-utils --lib"
             # Desktop clippy must lint integration tests too, so it picks up
             # `--all-targets`. test-utils is already on, so tests compile.
             clippy_args: "--all-targets --features test-utils"
@@ -99,6 +96,8 @@ jobs:
             # integration tests for `cargo test`, so `test-utils` is not
             # required here.
             cargo_args: "--no-default-features --features server-bin --bin codeg-server --lib"
+            # macOS builds the lib's unit tests on their own first; see
+            # "Unit-test build on its own (macOS)".
             lib_test_args: "--no-default-features --features server-bin --lib"
             # Server clippy intentionally skips `--all-targets`: integration
             # tests are already linted in the desktop cells, and pulling
@@ -152,15 +151,20 @@ jobs:
 
       - name: Unit-test build on its own (macOS)
         # The macOS runners have 3 cores and 7 GB of memory. `cargo test`
-        # compiles codeg_lib twice, the rlib that the bins and integration
-        # tests link and the lib's own unit-test build, each several GB on its
-        # own; side by side they push the desktop and server cells deep into
-        # swap. With the unit tests built first, the `cargo test` below finds
-        # them fresh and compiles the rlib alone. It has to be a `cargo test`
-        # build: only test builds turn on the dev-dependencies' features
-        # (tokio's `test-util`), so a lib from `cargo build` is not one
-        # `cargo test` reuses. The cli cell builds only the unit tests, and
-        # Linux and Windows fit both at once.
+        # compiles codeg_lib twice, the rlib that the bins link and the lib's
+        # own unit-test build, each several GB on its own; side by side they
+        # push the server cell deep into swap. With the unit tests built
+        # first, the `cargo test` below finds them fresh and compiles the
+        # rlib alone. It has to be a `cargo test` build: only test builds turn
+        # on the dev-dependencies' features (tokio's `test-util`), so a lib
+        # from `cargo build` is not one `cargo test` reuses.
+        #
+        # Not the desktop cell. Tauri's `generate_context!` writes its
+        # embedded assets into the build script's out dir during the crate's
+        # first compile, after that compile started, so the next cargo run
+        # takes them for changes and builds the unit tests again. Alone, the
+        # desktop unit-test build still took 18 minutes. The cli cell builds
+        # only the unit tests, and Linux and Windows fit both at once.
         if: runner.os == 'macOS' && matrix.lib_test_args
         working-directory: src-tauri
         run: cargo test ${{ matrix.lib_test_args }} --no-run
