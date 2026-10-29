@@ -218,6 +218,13 @@ interface MessageListViewProps {
    * (see `forkBusy`) rather than making every reply's footer flicker.
    */
   onForkFromTurn?: (turnId: string) => void
+  /**
+   * A fork this surface started is still running. The host's ref is the
+   * synchronous guard; this is what RENDERS, so a second activation is refused
+   * visibly instead of looking like it did nothing — which is what makes a user
+   * click again.
+   */
+  forkInFlight?: boolean
 }
 
 export interface ResolvedMessageGroup {
@@ -1433,6 +1440,7 @@ export function MessageListView({
   onAskSelection,
   onSaveNoteSelection,
   onForkFromTurn,
+  forkInFlight = false,
 }: MessageListViewProps) {
   const t = useTranslations("Folder.chat.messageList")
   const sharedT = useTranslations("Folder.chat.shared")
@@ -1781,7 +1789,7 @@ export function MessageListView({
                 onRoundOpenChange={handleRoundOpenChange}
                 foldEpoch={fold.epoch}
                 onForkFromTurn={onForkFromTurn}
-                forkDisabled={forkBusy}
+                forkDisabled={forkBusy || forkInFlight}
                 isThreadTail={item.isThreadTail}
               />
             </div>
@@ -1818,6 +1826,7 @@ export function MessageListView({
       handleRoundOpenChange,
       onForkFromTurn,
       forkBusy,
+      forkInFlight,
     ]
   )
 
